@@ -1,11 +1,35 @@
 #include "sqlite3.h"
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
+#include "./test_onefile.h"
 
 sqlite3 *db;
 
+static int genRandomness(int nByte, char *zOut) {
+  // lol, fills with AAAAAAAAAAAA
+  memset(zOut, 'A', nByte);
+  return nByte;
+}
+
+static struct onefile_functions dumb_functions = {
+  genRandomness /* xRandomness */
+};
+
 int main() {
-  fs_register();
+  sqlite3_onefile_from_c(dumb_functions, 1 /*mkDefault*/);
+  char* str = malloc(10*sizeof(char));
+  memset(str, 'B', 10);
+  str[9] = '\0';
+  printf("orig: %s\n", str);
+
+  // don’t overwrite the trailing \0
+  sqlite3_randomness(9*sizeof(char), str);
+  // this should always print AAAAA, but maybe I’m misunderstanding how sqlite3_randomness works.
+  // At least we always get the same result if we set mkDefault to 1 above,
+  // which means our custom implementation genRandomness is used!
+  printf("random: %s\n", str);
+
   int open_result = sqlite3_open_v2(
     "./mydb.sqlite",
     &db,

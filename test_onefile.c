@@ -88,6 +88,7 @@ SQLITE_EXTENSION_INIT1
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
+#include "./test_onefile.h"
 
 /*
 ** Maximum pathname length supported by the fs backend.
@@ -184,6 +185,7 @@ struct fs_vfs_t {
   sqlite3_vfs base;
   fs_real_file *pFileList;
   sqlite3_vfs *pParent;
+  struct onefile_functions onefile_functions;
 };
 
 static fs_vfs_t fs_vfs = {
@@ -755,15 +757,21 @@ static int fsFullPathname(
   int nOut,                     /* Size of output buffer in bytes */
   char *zOut                    /* Output buffer */
 ){
+  printf("fsFullPathname\n");
   // sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
   // return pParent->xFullPathname(pParent, zPath, nOut, zOut);
-  return SQLITE_IOERR;
+
+  // our files are always fully canonical (because we don’t have a filesystem but just names of blockdevices in mirageos)
+  strncpy(zOut, zPath, nOut);
+  return SQLITE_OK;
 }
 
 /*
 ** Open the dynamic library located at zPath and return a handle.
 */
 static void *fsDlOpen(sqlite3_vfs *pVfs, const char *zPath){
+  printf("fsDlOpen\n");
+
 //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
 //   return pParent->xDlOpen(pParent, zPath);
   return NULL;
@@ -775,6 +783,8 @@ static void *fsDlOpen(sqlite3_vfs *pVfs, const char *zPath){
 ** with dynamic libraries.
 */
 static void fsDlError(sqlite3_vfs *pVfs, int nByte, char *zErrMsg){
+  printf("fsDlError\n");
+
 //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
 //   pParent->xDlError(pParent, nByte, zErrMsg);
   return;
@@ -784,6 +794,8 @@ static void fsDlError(sqlite3_vfs *pVfs, int nByte, char *zErrMsg){
 ** Return a pointer to the symbol zSymbol in the dynamic library pHandle.
 */
 static void (*fsDlSym(sqlite3_vfs *pVfs, void *pH, const char *zSym))(void){
+  printf("fsDlSym\n");
+
 //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
 //   return pParent->xDlSym(pParent, pH, zSym);
   return NULL;
@@ -793,6 +805,8 @@ static void (*fsDlSym(sqlite3_vfs *pVfs, void *pH, const char *zSym))(void){
 ** Close the dynamic library handle pHandle.
 */
 static void fsDlClose(sqlite3_vfs *pVfs, void *pHandle){
+  printf("fsDlClose\n");
+
 //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
 //   pParent->xDlClose(pParent, pHandle);
   return;
@@ -803,12 +817,12 @@ static void fsDlClose(sqlite3_vfs *pVfs, void *pHandle){
 ** random data.
 */
 static int fsRandomness(sqlite3_vfs *pVfs, int nByte, char *zBufOut){
+  printf("fsRandomness\n");
+
   //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
   //   return pParent->xRandomness(pParent, nByte, zBufOut);
-
-  // TODO: use ocaml runtime randomness?
-  //pVfs->onefile_functions.fsRandomness(nByte, zBufOut);
-  return SQLITE_IOERR;
+  struct onefile_functions fns = ((fs_vfs_t *)pVfs)->onefile_functions;
+  return fns.xRandomness(nByte, zBufOut);
 }
 
 /*
@@ -816,6 +830,8 @@ static int fsRandomness(sqlite3_vfs *pVfs, int nByte, char *zBufOut){
 ** actually slept.
 */
 static int fsSleep(sqlite3_vfs *pVfs, int nMicro){
+  printf("fsSleep\n");
+
 //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
 //   return pParent->xSleep(pParent, nMicro);
   // TODO: how to implement?
@@ -826,6 +842,8 @@ static int fsSleep(sqlite3_vfs *pVfs, int nMicro){
 ** Return the current time as a Julian Day number in *pTimeOut.
 */
 static int fsCurrentTime(sqlite3_vfs *pVfs, double *pTimeOut){
+  printf("fsCurrentTime\n");
+
 //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
 //   return pParent->xCurrentTime(pParent, pTimeOut);
   return SQLITE_IOERR;
@@ -849,13 +867,14 @@ int sqlite3_onefileext_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_rout
 
 #else
 
-int sqlite3_onefile_from_c() {
+int sqlite3_onefile_from_c(struct onefile_functions fns, int mkDefault) {
   int rc = SQLITE_OK;
   if( fs_vfs.pParent ) return SQLITE_OK;
+  fs_vfs.onefile_functions = fns;
   fs_vfs.pParent = sqlite3_vfs_find(0);
   fs_vfs.base.mxPathname = fs_vfs.pParent->mxPathname;
   fs_vfs.base.szOsFile = MAX(sizeof(tmp_file), sizeof(fs_file));
-  rc = sqlite3_vfs_register(&fs_vfs.base, 0 /*mkDefault*/);
+  rc = sqlite3_vfs_register(&fs_vfs.base, mkDefault);
   if( rc==SQLITE_OK ) rc = SQLITE_OK_LOAD_PERMANENTLY;
   return rc;
 }
