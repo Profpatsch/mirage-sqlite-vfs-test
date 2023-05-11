@@ -755,16 +755,18 @@ static int fsFullPathname(
   int nOut,                     /* Size of output buffer in bytes */
   char *zOut                    /* Output buffer */
 ){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  return pParent->xFullPathname(pParent, zPath, nOut, zOut);
+  // sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+  // return pParent->xFullPathname(pParent, zPath, nOut, zOut);
+  return SQLITE_IOERR;
 }
 
 /*
 ** Open the dynamic library located at zPath and return a handle.
 */
 static void *fsDlOpen(sqlite3_vfs *pVfs, const char *zPath){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  return pParent->xDlOpen(pParent, zPath);
+//   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+//   return pParent->xDlOpen(pParent, zPath);
+  return NULL;
 }
 
 /*
@@ -773,24 +775,27 @@ static void *fsDlOpen(sqlite3_vfs *pVfs, const char *zPath){
 ** with dynamic libraries.
 */
 static void fsDlError(sqlite3_vfs *pVfs, int nByte, char *zErrMsg){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  pParent->xDlError(pParent, nByte, zErrMsg);
+//   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+//   pParent->xDlError(pParent, nByte, zErrMsg);
+  return;
 }
 
 /*
 ** Return a pointer to the symbol zSymbol in the dynamic library pHandle.
 */
 static void (*fsDlSym(sqlite3_vfs *pVfs, void *pH, const char *zSym))(void){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  return pParent->xDlSym(pParent, pH, zSym);
+//   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+//   return pParent->xDlSym(pParent, pH, zSym);
+  return NULL;
 }
 
 /*
 ** Close the dynamic library handle pHandle.
 */
 static void fsDlClose(sqlite3_vfs *pVfs, void *pHandle){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  pParent->xDlClose(pParent, pHandle);
+//   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+//   pParent->xDlClose(pParent, pHandle);
+  return;
 }
 
 /*
@@ -798,8 +803,12 @@ static void fsDlClose(sqlite3_vfs *pVfs, void *pHandle){
 ** random data.
 */
 static int fsRandomness(sqlite3_vfs *pVfs, int nByte, char *zBufOut){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  return pParent->xRandomness(pParent, nByte, zBufOut);
+  //   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+  //   return pParent->xRandomness(pParent, nByte, zBufOut);
+
+  // TODO: use ocaml runtime randomness?
+  //pVfs->onefile_functions.fsRandomness(nByte, zBufOut);
+  return SQLITE_IOERR;
 }
 
 /*
@@ -807,16 +816,19 @@ static int fsRandomness(sqlite3_vfs *pVfs, int nByte, char *zBufOut){
 ** actually slept.
 */
 static int fsSleep(sqlite3_vfs *pVfs, int nMicro){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  return pParent->xSleep(pParent, nMicro);
+//   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+//   return pParent->xSleep(pParent, nMicro);
+  // TODO: how to implement?
+  return SQLITE_IOERR;
 }
 
 /*
 ** Return the current time as a Julian Day number in *pTimeOut.
 */
 static int fsCurrentTime(sqlite3_vfs *pVfs, double *pTimeOut){
-  sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
-  return pParent->xCurrentTime(pParent, pTimeOut);
+//   sqlite3_vfs *pParent = ((fs_vfs_t *)pVfs)->pParent;
+//   return pParent->xCurrentTime(pParent, pTimeOut);
+  return SQLITE_IOERR;
 }
 
 // This is a hack because we can’t compile this as an sqlite3 CLI extension
@@ -830,7 +842,7 @@ int sqlite3_onefileext_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_rout
   fs_vfs.pParent = sqlite3_vfs_find(0);
   fs_vfs.base.mxPathname = fs_vfs.pParent->mxPathname;
   fs_vfs.base.szOsFile = MAX(sizeof(tmp_file), sizeof(fs_file));
-  rc = sqlite3_vfs_register(&fs_vfs.base, 0);
+  rc = sqlite3_vfs_register(&fs_vfs.base, 0 /*mkDefault*/);
   if( rc==SQLITE_OK ) rc = SQLITE_OK_LOAD_PERMANENTLY;
   return rc;
 }
