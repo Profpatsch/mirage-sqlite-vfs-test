@@ -1,4 +1,3 @@
-#include "./test_onefile.h"
 #include "sqlite3.h"
 #include <stdio.h>
 #include <stdlib.h>
@@ -11,7 +10,7 @@ int main() {
     "./mydb.sqlite",
     &db,
     SQLITE_OPEN_READWRITE | SQLITE_OPEN_CREATE,
-    "test_onefile"
+    "onefile"
   );
   printf("open_result: %s\n", sqlite3_errstr(open_result));
   char *errmsg;

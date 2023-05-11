@@ -79,8 +79,12 @@
 **   time using this demo vfs.
 */
 
+#ifdef SQLITE_ONEFILE_EXT
 #include "sqlite3ext.h"
 SQLITE_EXTENSION_INIT1
+#else
+#include "sqlite3.h"
+#endif
 #include <assert.h>
 #include <string.h>
 #include <stdio.h>
@@ -94,7 +98,7 @@ SQLITE_EXTENSION_INIT1
 /*
 ** Name used to identify this VFS.
 */
-#define FS_VFS_NAME "test_onefile"
+#define FS_VFS_NAME "onefile"
 
 typedef struct fs_real_file fs_real_file;
 struct fs_real_file {
@@ -815,27 +819,26 @@ static int fsCurrentTime(sqlite3_vfs *pVfs, double *pTimeOut){
   return pParent->xCurrentTime(pParent, pTimeOut);
 }
 
-/*
-** This procedure registers the fs vfs with SQLite. If the argument is
-** true, the fs vfs becomes the new default vfs. It is the only publicly
-** available function in this file.
-*/
-int fs_register(void){
+// This is a hack because we can’t compile this as an sqlite3 CLI extension
+// that can be dynamically loaded and a file callable from C at the same time(?)
+#ifdef SQLITE_ONEFILE_EXT
+
+int sqlite3_onefileext_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi) {
+  int rc = SQLITE_OK;
+  SQLITE_EXTENSION_INIT2(pApi);
   if( fs_vfs.pParent ) return SQLITE_OK;
   fs_vfs.pParent = sqlite3_vfs_find(0);
   fs_vfs.base.mxPathname = fs_vfs.pParent->mxPathname;
   fs_vfs.base.szOsFile = MAX(sizeof(tmp_file), sizeof(fs_file));
-  return sqlite3_vfs_register(&fs_vfs.base, 0);
+  rc = sqlite3_vfs_register(&fs_vfs.base, 0);
+  if( rc==SQLITE_OK ) rc = SQLITE_OK_LOAD_PERMANENTLY;
+  return rc;
 }
 
-/*
-** This procedure registers the fs vfs with SQLite. If the argument is
-** true, the fs vfs becomes the new default vfs. It is the only publicly
-** available function in this file.
-*/
-int sqlite3_testonefile_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_routines *pApi) {
+#else
+
+int sqlite3_onefile_from_c() {
   int rc = SQLITE_OK;
-  SQLITE_EXTENSION_INIT2(pApi);
   if( fs_vfs.pParent ) return SQLITE_OK;
   fs_vfs.pParent = sqlite3_vfs_find(0);
   fs_vfs.base.mxPathname = fs_vfs.pParent->mxPathname;
@@ -845,6 +848,7 @@ int sqlite3_testonefile_init(sqlite3 *db, char **pzErrMsg, const sqlite3_api_rou
   return rc;
 }
 
+#endif
 
 
 #ifdef SQLITE_TEST
